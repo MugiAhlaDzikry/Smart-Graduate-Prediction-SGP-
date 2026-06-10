@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+backend/venv/
+
+# Environment Variables (SENSITIVE - jangan pernah push!)
+backend/.env
+
+# ML Model artifacts (bisa di-regenerate)
+backend/model.pkl
+backend/features.pkl
+
+# Data files
+backend/data/
+
+# Node.js
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp
+D:\temp_pip_cache/
+D:\temp_npm_cache/

@@ -1,0 +1,84 @@
+Konsep Aplikasi Prediksi Kelulusan Mahasiswa Tepat Waktu
+1. Nama Aplikasi
+Smart Graduate Predictor (SGP)
+2. Deskripsi Singkat
+Aplikasi berbasis web yang membantu kampus memprediksi kemungkinan mahasiswa lulus tepat waktu menggunakan Machine Learning. Sistem juga memberikan analisis faktor risiko dan rekomendasi tindak lanjut.
+3. Tujuan
+- Mendeteksi mahasiswa berisiko terlambat lulus.
+- Membantu dosen wali melakukan monitoring.
+- Menyediakan dashboard akademik berbasis data.
+4. Aktor Sistem
+Admin Akademik, Dosen Wali, dan Mahasiswa.
+5. Alur Penggunaan
+1. Login
+2. Admin mengunggah data mahasiswa
+3. Sistem melakukan preprocessing dan training model
+4. Dosen melihat hasil prediksi
+5. Sistem menampilkan tingkat risiko dan rekomendasi
+6. Dashboard menampilkan statistik keseluruhan
+6. Fitur Utama
+- Login dan Role Management
+- Import Data Mahasiswa (CSV/Excel)
+- Training Model Machine Learning
+- Prediksi Kelulusan
+- Analisis Faktor Risiko
+- Dashboard Statistik
+- Riwayat Prediksi
+- Export Laporan
+7. Arsitektur Sistem
+Frontend (React + Tailwind CSS) → Backend API (FastAPI) → Model Machine Learning → Supabase Database
+8. Tech Stack
+Frontend:
+- React.js
+- Tailwind CSS
+- React Router
+- Axios
+- Recharts
+
+Backend:
+- Python
+- FastAPI
+- SQLAlchemy
+- JWT Authentication
+
+Machine Learning:
+- Pandas
+- NumPy
+- Scikit-Learn
+- Random Forest
+- XGBoost
+- SHAP
+
+Database:
+- supabase
+9. Struktur Halaman
+Landing Page
+Login
+Dashboard
+Kelola Mahasiswa
+Training Model
+Prediksi Individu
+Analisis Risiko
+Laporan
+10. Desain Dashboard
+Widget:
+- Total Mahasiswa
+- Persentase Tepat Waktu
+- Mahasiswa Risiko Tinggi
+- Grafik Kelulusan
+- Distribusi IPK
+11. Struktur Database
+Tabel users
+Tabel students
+Tabel academic_records
+Tabel predictions
+Tabel training_logs
+12. Roadmap Pengembangan
+Tahap 1: Desain Database
+Tahap 2: Backend API
+Tahap 3: Machine Learning
+Tahap 4: Frontend React
+Tahap 5: Integrasi dan Testing
+Tahap 6: Deployment
+13. Nilai Tambah
+Menggunakan Explainable AI (SHAP) untuk menjelaskan alasan prediksi sehingga hasil lebih mudah dipahami oleh dosen dan pihak akademik.
