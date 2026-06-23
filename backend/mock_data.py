@@ -11,12 +11,11 @@ def generate_mock_data(num_records=500):
     for i in range(num_records):
         nim = f"1301{20+random.randint(0,4)}{random.randint(1000, 9999)}"
         gender = random.choice(['L', 'P'])
-        major = random.choice(['Teknik Informatika', 'Sistem Informasi', 'Teknik Komputer'])
+        major = 'Ilmu Komputer'
         
         # Features that influence graduation
         gpa = np.clip(np.random.normal(3.1, 0.4), 2.0, 4.0)
         attendance_rate = np.clip(np.random.normal(85, 10), 50, 100)
-        extracurricular_score = np.clip(np.random.normal(60, 20), 0, 100)
         financial_status = random.choice(['Mandiri', 'Beasiswa', 'KIP-K'])
         
         # SKS progress (Assuming evaluation at semester 6)
@@ -41,7 +40,6 @@ def generate_mock_data(num_records=500):
             'gpa': round(gpa, 2),
             'credits_completed': credits_completed,
             'attendance_rate': round(attendance_rate, 2),
-            'extracurricular_score': int(extracurricular_score),
             'financial_status': financial_status,
             'is_on_time': is_on_time
         })

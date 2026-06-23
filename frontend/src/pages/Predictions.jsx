@@ -2,7 +2,8 @@ import { useState } from 'react';
 import axios from 'axios';
 import {
   Activity, Upload, Search, ChevronDown, AlertCircle,
-  CheckCircle2, XCircle, TrendingUp, TrendingDown, Info
+  CheckCircle2, XCircle, TrendingUp, TrendingDown, Info,
+  FileText, Trash2, Check
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -15,24 +16,29 @@ export default function Predictions() {
   const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
+    nim: '',
+    name: '',
     semester: 6,
     gpa: '',
     credits_completed: '',
     attendance_rate: '',
-    extracurricular_score: '',
     gender: 'L',
-    major: 'Teknik Informatika',
+    major: 'Ilmu Komputer',
     financial_status: 'Mandiri',
   });
+
+  const [batchFile, setBatchFile] = useState(null);
+  const [batchResults, setBatchResults] = useState(null);
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
+  const [batchError, setBatchError] = useState(null);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const featureMapping = {
     gpa: 'IPK (GPA)',
     credits_completed: 'SKS Selesai',
     attendance_rate: 'Kehadiran',
-    extracurricular_score: 'Ekskul Score',
     semester: 'Semester',
     gender: 'Jenis Kelamin',
-    major: 'Program Studi',
     financial_status: 'Status Keuangan',
   };
 
@@ -57,11 +63,12 @@ export default function Predictions() {
     setPredictionResult(null);
 
     const payload = {
+      nim: formData.nim,
+      name: formData.name,
       semester: parseInt(formData.semester) || 6,
       gpa: parseFloat(formData.gpa),
       credits_completed: parseInt(formData.credits_completed),
       attendance_rate: parseFloat(formData.attendance_rate),
-      extracurricular_score: parseInt(formData.extracurricular_score) || 60,
       gender: formData.gender,
       major: formData.major,
       financial_status: formData.financial_status,
@@ -78,6 +85,8 @@ export default function Predictions() {
       }));
 
       setPredictionResult({
+        nim: formData.nim,
+        name: formData.name,
         prediction: data.prediction,
         probability_on_time: data.probability_on_time,
         risk_factors: mappedRiskFactors,
@@ -94,6 +103,51 @@ export default function Predictions() {
     if (prob >= 0.75) return { text: 'Risiko Rendah', color: 'emerald', icon: CheckCircle2 };
     if (prob >= 0.5) return { text: 'Risiko Sedang', color: 'amber', icon: AlertCircle };
     return { text: 'Risiko Tinggi', color: 'red', icon: XCircle };
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBatchFile(file);
+      setBatchError(null);
+      setBatchResults(null);
+    }
+  };
+
+  const handleBatchUpload = async (e) => {
+    e.preventDefault();
+    if (!batchFile) {
+      setBatchError('Pilih file terlebih dahulu.');
+      return;
+    }
+
+    setIsBatchLoading(true);
+    setBatchError(null);
+    setBatchResults(null);
+
+    const data = new FormData();
+    data.append('file', batchFile);
+
+    try {
+      const response = await axios.post('http://localhost:8000/api/predict/batch', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setBatchResults(response.data);
+    } catch (err) {
+      console.error(err);
+      setBatchError(err.response?.data?.detail || 'Gagal memproses batch prediksi dari server backend.');
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+
+  const handleResetBatch = () => {
+    setBatchFile(null);
+    setBatchResults(null);
+    setBatchError(null);
+    setExpandedRow(null);
   };
 
   return (
@@ -140,6 +194,37 @@ export default function Predictions() {
             </p>
 
             <form onSubmit={handlePredict} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                {/* NIM */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                    NIM Mahasiswa
+                  </label>
+                  <input
+                    type="text"
+                    name="nim"
+                    value={formData.nim}
+                    onChange={handleInputChange}
+                    placeholder="Contoh: 1301201234"
+                    className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                    Nama Mahasiswa (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Masukkan nama"
+                    className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
               {/* Gender & Major */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -175,25 +260,7 @@ export default function Predictions() {
                 </div>
               </div>
 
-              {/* Major */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Program Studi
-                </label>
-                <div className="relative">
-                  <select
-                    name="major"
-                    value={formData.major}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                  >
-                    <option value="Teknik Informatika">Teknik Informatika</option>
-                    <option value="Sistem Informasi">Sistem Informasi</option>
-                    <option value="Teknik Komputer">Teknik Komputer</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
+
 
               {/* GPA */}
               <div>
@@ -251,22 +318,7 @@ export default function Predictions() {
                 />
               </div>
 
-              {/* Extracurricular */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Skor Ekstrakurikuler (0-100)
-                </label>
-                <input
-                  type="number"
-                  name="extracurricular_score"
-                  value={formData.extracurricular_score}
-                  onChange={handleInputChange}
-                  min="0"
-                  max="100"
-                  placeholder="Contoh: 70"
-                  className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
-                />
-              </div>
+
 
               {/* Financial */}
               <div>
@@ -367,7 +419,9 @@ export default function Predictions() {
                       <div className="p-6">
                         <div className="flex items-start justify-between">
                           <div>
-                            <p className="text-sm font-medium text-slate-500 mb-1">Hasil Prediksi</p>
+                            <p className="text-sm font-medium text-slate-500 mb-1">
+                              Hasil Prediksi {predictionResult.nim && <span className="text-slate-700 font-semibold">— NIM: {predictionResult.nim}{predictionResult.name ? ` (${predictionResult.name})` : ''}</span>}
+                            </p>
                             <h2 className="text-2xl font-bold text-slate-800">
                               {predictionResult.prediction === 1 ? 'Lulus Tepat Waktu' : 'Berisiko Terlambat'}
                             </h2>
@@ -546,38 +600,308 @@ export default function Predictions() {
 
       {/* Batch Upload Tab */}
       {activeTab === 'batch' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-          <div className="max-w-lg mx-auto text-center">
-            <div className="p-5 bg-blue-50 rounded-2xl inline-block mb-5">
-              <Upload className="h-10 w-10 text-blue-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">Upload Data Batch</h3>
-            <p className="text-sm text-slate-500 mb-8">
-              Upload file CSV atau Excel berisi data mahasiswa untuk prediksi batch
-            </p>
-
-            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 hover:border-blue-400 transition-colors cursor-pointer group">
-              <Upload className="h-8 w-8 text-slate-300 mx-auto mb-3 group-hover:text-blue-400 transition-colors" />
-              <p className="text-sm text-slate-500 mb-1">
-                <span className="text-blue-600 font-medium">Klik untuk upload</span> atau drag & drop
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 animate-fadeIn">
+          {!batchResults ? (
+            <div className="max-w-lg mx-auto text-center">
+              <div className="p-5 bg-blue-50 rounded-2xl inline-block mb-5">
+                <Upload className="h-10 w-10 text-blue-500" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">Upload Data Batch</h3>
+              <p className="text-sm text-slate-500 mb-8">
+                Upload file CSV atau Excel berisi data mahasiswa untuk prediksi batch sekaligus
               </p>
-              <p className="text-xs text-slate-400">CSV, XLSX (Maks. 10MB)</p>
-            </div>
 
-            <div className="mt-6 p-4 bg-slate-50 rounded-xl text-left">
-              <p className="text-xs font-semibold text-slate-600 mb-2">Format Kolom yang Dibutuhkan:</p>
-              <div className="flex flex-wrap gap-2">
-                {['nim', 'gender', 'major', 'semester', 'gpa', 'credits_completed', 'attendance_rate', 'extracurricular_score', 'financial_status'].map((col) => (
-                  <span
-                    key={col}
-                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600"
+              {batchError && (
+                <div className="flex gap-3 p-4 bg-red-50 rounded-xl border border-red-200 text-red-800 text-sm mb-6 text-left">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">Error Upload</p>
+                    <p className="text-xs text-red-600 mt-1">{batchError}</p>
+                  </div>
+                </div>
+              )}
+
+              <label className="block border-2 border-dashed border-slate-200 rounded-2xl p-10 hover:border-blue-400 hover:bg-slate-50/50 transition-all cursor-pointer group relative">
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".csv, .xlsx, .xls"
+                  className="hidden"
+                  disabled={isBatchLoading}
+                />
+                <div className="space-y-3">
+                  <div className="p-3 bg-slate-100 rounded-full w-fit mx-auto group-hover:bg-blue-50 transition-colors">
+                    <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                  </div>
+                  {batchFile ? (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">{batchFile.name}</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {(batchFile.size / 1024).toFixed(1)} KB — Siap untuk diprediksi
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-slate-600">
+                        <span className="text-blue-600 font-medium">Klik untuk upload</span> atau drag & drop
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">CSV, XLSX (Maks. 10MB)</p>
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {batchFile && !isBatchLoading && (
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleResetBatch}
+                    className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all"
                   >
-                    {col}
-                  </span>
-                ))}
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleBatchUpload}
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all"
+                  >
+                    Mulai Prediksi Batch
+                  </button>
+                </div>
+              )}
+
+              {isBatchLoading && (
+                <div className="mt-8 flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <div className="h-12 w-12 border-4 border-blue-100 rounded-full" />
+                    <div className="absolute inset-0 h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-600 mt-4">Memproses Prediksi Batch...</p>
+                  <p className="text-xs text-slate-400 mt-1">Model sedang menganalisis file data</p>
+                </div>
+              )}
+
+              <div className="mt-8 p-4 bg-slate-50 rounded-xl text-left border border-slate-100">
+                <p className="text-xs font-semibold text-slate-600 mb-2.5 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-blue-500" />
+                  Format Kolom yang Dibutuhkan dalam File:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {['nim', 'name', 'gender', 'semester', 'gpa', 'credits_completed', 'attendance_rate', 'financial_status'].map((col) => (
+                    <span
+                      key={col}
+                      className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 shadow-sm"
+                    >
+                      {col}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                  * Pastikan header kolom persis sama seperti di atas. Nilai gender adalah 'L'/'P', status keuangan 'Mandiri'/'Beasiswa'/'KIP-K', dan kehadiran dalam persen (0-100).
+                </p>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 font-sans">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Hasil Prediksi Batch</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    File: <span className="font-semibold text-slate-700">{batchFile?.name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetBatch}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg transition-all border border-slate-200"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload File Baru
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                  <p className="text-xs font-medium text-slate-500">Total Mahasiswa</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{batchResults.total}</p>
+                </div>
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                  <p className="text-xs font-medium text-emerald-800">Tepat Waktu</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">
+                    {batchResults.results.filter((r) => r.prediction === 1).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                  <p className="text-xs font-medium text-red-800">Berisiko Terlambat</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {batchResults.results.filter((r) => r.prediction === 0).length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Table list */}
+              <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-sm text-slate-600 border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-150">
+                      <th className="px-4 py-3 w-8"></th>
+                      <th className="px-4 py-3 font-semibold text-slate-700 text-xs">NIM</th>
+                      <th className="px-4 py-3 font-semibold text-slate-700 text-xs">Nama</th>
+                      <th className="px-4 py-3 font-semibold text-slate-700 text-xs">Probabilitas Tepat Waktu</th>
+                      <th className="px-4 py-3 font-semibold text-slate-700 text-xs">Prediksi Kelulusan</th>
+                      <th className="px-4 py-3 font-semibold text-slate-700 text-xs">Tingkat Risiko</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {batchResults.results.map((result, idx) => {
+                      if (result.error) {
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/30">
+                            <td className="px-4 py-3.5"></td>
+                            <td className="px-4 py-3.5 font-mono text-xs text-slate-700">{result.nim || '-'}</td>
+                            <td className="px-4 py-3.5 text-xs text-slate-700">{result.name || '-'}</td>
+                            <td colSpan={3} className="px-4 py-3.5 text-xs text-red-500 italic">
+                              Error: {result.error}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      const risk = getRiskLevel(result.probability_on_time);
+                      const RiskIcon = risk.icon;
+                      const isExpanded = expandedRow === idx;
+                      const shapData = result.risk_factors
+                        ? result.risk_factors.map((f) => ({
+                            name: mapFeatureName(f.feature),
+                            value: parseFloat(f.impact.toFixed(3)),
+                            direction: f.impact >= 0 ? 'positive' : 'negative',
+                          }))
+                        : [];
+
+                      return (
+                        <>
+                          <tr
+                            key={idx}
+                            className={`hover:bg-slate-50/30 cursor-pointer transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}
+                            onClick={() => setExpandedRow(isExpanded ? null : idx)}
+                          >
+                            <td className="px-4 py-3.5">
+                              <ChevronDown
+                                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </td>
+                            <td className="px-4 py-3.5 font-mono text-xs text-slate-800 font-semibold">{result.nim}</td>
+                            <td className="px-4 py-3.5 text-xs text-slate-700">{result.name || '-'}</td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-700">
+                                  {(result.probability_on_time * 100).toFixed(1)}%
+                                </span>
+                                <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      risk.color === 'emerald' ? 'bg-emerald-500' :
+                                      risk.color === 'amber' ? 'bg-amber-500' : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${result.probability_on_time * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                                result.prediction === 1
+                                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/10'
+                                  : 'bg-red-50 text-red-700 ring-1 ring-red-600/10'
+                              }`}>
+                                {result.prediction === 1 ? 'Lulus Tepat Waktu' : 'Berisiko Terlambat'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                                risk.color === 'emerald' ? 'text-emerald-600' :
+                                risk.color === 'amber' ? 'text-amber-600' : 'text-red-600'
+                              }`}>
+                                <RiskIcon className="h-3.5 w-3.5" />
+                                {risk.text}
+                              </span>
+                            </td>
+                          </tr>
+
+                          {/* Expandable SHAP Detail Row */}
+                          {isExpanded && shapData.length > 0 && (
+                            <tr key={`${idx}-shap`} className="bg-slate-50/80">
+                              <td colSpan={5} className="px-6 py-5">
+                                <div className="max-w-2xl">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="text-sm font-semibold text-slate-700">Analisis Faktor Risiko (SHAP)</h4>
+                                    <div className="group relative">
+                                      <Info className="h-3.5 w-3.5 text-slate-400 cursor-help" />
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 bg-slate-800 text-white text-[11px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                        SHAP menjelaskan kontribusi setiap fitur terhadap prediksi model
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-slate-500 mb-4">
+                                    Faktor-faktor yang mempengaruhi prediksi untuk NIM: <span className="font-semibold">{result.nim}</span>
+                                  </p>
+
+                                  <ResponsiveContainer width="100%" height={180}>
+                                    <BarChart
+                                      data={shapData}
+                                      layout="vertical"
+                                      margin={{ top: 0, right: 20, left: 100, bottom: 0 }}
+                                    >
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                                      <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                      <YAxis
+                                        type="category"
+                                        dataKey="name"
+                                        tick={{ fontSize: 11, fill: '#64748b' }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        width={95}
+                                      />
+                                      <Tooltip
+                                        contentStyle={{
+                                          backgroundColor: '#fff',
+                                          border: '1px solid #e2e8f0',
+                                          borderRadius: '10px',
+                                          fontSize: '12px',
+                                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+                                        }}
+                                        formatter={(value) => [value.toFixed(4), 'SHAP Value']}
+                                      />
+                                      <Bar dataKey="value" radius={[0, 5, 5, 0]} barSize={20}>
+                                        {shapData.map((entry, i) => (
+                                          <Cell
+                                            key={`cell-${i}`}
+                                            fill={entry.value >= 0 ? '#10b981' : '#ef4444'}
+                                          />
+                                        ))}
+                                      </Bar>
+                                    </BarChart>
+                                  </ResponsiveContainer>
+
+                                  <div className="flex items-center justify-center gap-5 mt-2 text-[11px] text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                      Meningkatkan peluang lulus tepat waktu
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <TrendingDown className="h-3 w-3 text-red-500" />
+                                      Menurunkan peluang lulus tepat waktu
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

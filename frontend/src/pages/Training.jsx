@@ -1,36 +1,73 @@
-import { useState } from 'react';
-import { Cpu, Play, CheckCircle, Clock, BarChart3, Zap, Database } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Cpu, Play, CheckCircle, Clock, BarChart3, Zap, Database, AlertTriangle } from 'lucide-react';
+import api from '../lib/api';
 
 export default function Training() {
   const [isTraining, setIsTraining] = useState(false);
   const [trainingResult, setTrainingResult] = useState(null);
+  const [datasetStats, setDatasetStats] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState('');
 
-  const handleTrain = () => {
+  // Cek apakah sudah ada log training saat komponen dimuat
+  useEffect(() => {
+    fetchTrainingLog();
+    fetchDatasetStats();
+  }, []);
+
+  const fetchDatasetStats = async () => {
+    try {
+      const res = await api.get('/api/dataset/stats');
+      setDatasetStats(res.data);
+    } catch (err) {
+      console.error('Gagal mengambil statistik dataset', err);
+    }
+  };
+
+  const fetchTrainingLog = async () => {
+    try {
+      const res = await api.get('/api/training/log');
+      if (res.data && res.data.accuracy) {
+        setTrainingResult(res.data);
+      }
+    } catch (err) {
+      console.error('Gagal mengambil log training', err);
+    }
+  };
+
+  const handleTrain = async () => {
     setIsTraining(true);
     setProgress(0);
     setTrainingResult(null);
+    setError('');
 
-    // Simulate training progress
-    const interval = setInterval(() => {
+    // Animasi progress bar palsu untuk UX sementara request API berjalan
+    const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsTraining(false);
-          setTrainingResult({
-            accuracy: 0.9420,
-            precision: 0.9315,
-            recall: 0.9580,
-            f1_score: 0.9446,
-            total_samples: 1000,
-            model_version: `v${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`,
-            trained_at: new Date().toISOString(),
-          });
-          return 100;
-        }
-        return prev + Math.random() * 15;
+        if (prev >= 90) return prev; // Stop di 90% sampai API selesai
+        return prev + Math.random() * 5;
       });
-    }, 400);
+    }, 500);
+
+    try {
+      // Panggil API training asli
+      const res = await api.post('/api/train');
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      // Tunggu sebentar agar progress bar 100% terlihat
+      setTimeout(() => {
+        setIsTraining(false);
+        setTrainingResult(res.data);
+      }, 500);
+
+    } catch (err) {
+      clearInterval(progressInterval);
+      setIsTraining(false);
+      setProgress(0);
+      setError(err.response?.data?.detail || 'Terjadi kesalahan saat melatih model.');
+    }
   };
 
   const metrics = [
@@ -53,6 +90,14 @@ export default function Training() {
         <h1 className="text-2xl font-bold text-slate-800">Training Model</h1>
         <p className="text-slate-500 mt-1">Latih model Machine Learning untuk prediksi kelulusan</p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       {/* Training Control */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -99,6 +144,16 @@ export default function Training() {
                 <p className="text-sm font-semibold text-slate-700">{item.value}</p>
               </div>
             ))}
+            
+            {/* Tampilkan statistik dataset jika tersedia */}
+            {datasetStats && (
+              <div className="col-span-2 sm:col-span-4 mt-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <p className="text-xs font-semibold text-blue-600 mb-0.5">Dataset Training</p>
+                <p className="text-sm text-blue-800">
+                  Total Data: <strong>{datasetStats.total}</strong> mahasiswa (Data Sintetis Realistis)
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -130,9 +185,9 @@ export default function Training() {
           <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
             <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-emerald-700">Training Berhasil!</p>
+              <p className="text-sm font-semibold text-emerald-700">Model Siap Digunakan!</p>
               <p className="text-xs text-emerald-600">
-                Model {trainingResult.model_version} dilatih pada {trainingResult.total_samples} sampel data
+                Model {trainingResult.model_version} dilatih pada {trainingResult.total_samples || '-'} sampel data
               </p>
             </div>
           </div>
@@ -141,7 +196,7 @@ export default function Training() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {metrics.map((m) => {
               const c = colorMap[m.color];
-              const val = trainingResult[m.key];
+              const val = trainingResult[m.key] || 0;
               return (
                 <div key={m.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -169,12 +224,12 @@ export default function Training() {
               </div>
               <div className="p-4 bg-slate-50 rounded-xl">
                 <p className="text-xs text-slate-400 mb-1">Total Sampel</p>
-                <p className="text-sm font-semibold text-slate-700">{trainingResult.total_samples.toLocaleString()}</p>
+                <p className="text-sm font-semibold text-slate-700">{(trainingResult.total_samples || 0).toLocaleString()}</p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl">
                 <p className="text-xs text-slate-400 mb-1">Waktu Training</p>
                 <p className="text-sm font-semibold text-slate-700">
-                  {new Date(trainingResult.trained_at).toLocaleString('id-ID')}
+                  {trainingResult.trained_at ? new Date(trainingResult.trained_at).toLocaleString('id-ID') : '-'}
                 </p>
               </div>
             </div>
@@ -190,7 +245,7 @@ export default function Training() {
           </div>
           <h3 className="text-lg font-semibold text-slate-600 mb-2">Belum Ada Riwayat Training</h3>
           <p className="text-sm text-slate-400 max-w-sm mx-auto">
-            Pastikan dataset sudah diupload, lalu klik "Mulai Training" untuk melatih model
+            Pastikan dataset sudah diupload, lalu klik "Mulai Training" untuk melatih model dengan data yang ada.
           </p>
         </div>
       )}

@@ -1,54 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
   Users, TrendingUp, AlertTriangle, GraduationCap,
-  ArrowUpRight, ArrowDownRight, BarChart3
+  ArrowUpRight, ArrowDownRight, BarChart3, Loader2, DatabaseZap
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
-  Legend
+  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
+import api from '../lib/api';
 
-// Mock data for charts
-const graduationTrendData = [
-  { tahun: '2021', tepat_waktu: 72, terlambat: 28 },
-  { tahun: '2022', tepat_waktu: 76, terlambat: 24 },
-  { tahun: '2023', tepat_waktu: 78, terlambat: 22 },
-  { tahun: '2024', tepat_waktu: 82, terlambat: 18 },
-  { tahun: '2025', tepat_waktu: 85, terlambat: 15 },
-];
-
-const gpaDistributionData = [
-  { range: '2.0-2.5', jumlah: 45, fill: '#ef4444' },
-  { range: '2.5-3.0', jumlah: 120, fill: '#f59e0b' },
-  { range: '3.0-3.5', jumlah: 280, fill: '#3b82f6' },
-  { range: '3.5-4.0', jumlah: 155, fill: '#10b981' },
-];
-
-const riskDistribution = [
-  { name: 'Risiko Rendah', value: 620, color: '#10b981' },
-  { name: 'Risiko Sedang', value: 245, color: '#f59e0b' },
-  { name: 'Risiko Tinggi', value: 135, color: '#ef4444' },
-];
-
-const monthlyPredictions = [
-  { bulan: 'Jan', total: 45 },
-  { bulan: 'Feb', total: 52 },
-  { bulan: 'Mar', total: 78 },
-  { bulan: 'Apr', total: 65 },
-  { bulan: 'Mei', total: 90 },
-  { bulan: 'Jun', total: 110 },
-];
-
-const recentPredictions = [
-  { nim: '130120001', nama: 'Ahmad Fauzi', ipk: 3.65, status: 'Tepat Waktu', prob: 0.92, risk: 'low' },
-  { nim: '130121023', nama: 'Siti Nurhaliza', ipk: 3.12, status: 'Tepat Waktu', prob: 0.78, risk: 'medium' },
-  { nim: '130120045', nama: 'Budi Santoso', ipk: 2.45, status: 'Terlambat', prob: 0.35, risk: 'high' },
-  { nim: '130122012', nama: 'Dewi Lestari', ipk: 3.88, status: 'Tepat Waktu', prob: 0.96, risk: 'low' },
-  { nim: '130121056', nama: 'Reza Pratama', ipk: 2.78, status: 'Terlambat', prob: 0.42, risk: 'high' },
-];
-
-function StatCard({ icon: Icon, title, value, change, changeType, color, delay }) {
+function StatCard({ icon: Icon, title, value, subtitle, color, delay }) {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), delay);
@@ -79,22 +40,35 @@ function StatCard({ icon: Icon, title, value, change, changeType, color, delay }
           <Icon className={`h-6 w-6 ${c.icon}`} />
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-1 text-sm">
-        {changeType === 'up' ? (
-          <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-        ) : (
-          <ArrowDownRight className="h-4 w-4 text-red-500" />
-        )}
-        <span className={changeType === 'up' ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
-          {change}
-        </span>
-        <span className="text-slate-400 ml-1">dari semester lalu</span>
-      </div>
+      {subtitle && (
+        <p className="mt-3 text-sm text-slate-400">{subtitle}</p>
+      )}
     </div>
   );
 }
 
 export default function Dashboard() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/api/dashboard/stats');
+      setData(res.data);
+    } catch (err) {
+      setError('Gagal memuat data dashboard. Pastikan backend berjalan.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const RADIAN = Math.PI / 180;
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -107,6 +81,60 @@ export default function Dashboard() {
     );
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-500">Memuat data dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center p-8 bg-red-50 rounded-2xl border border-red-200 max-w-md">
+          <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 font-medium">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl text-sm hover:bg-red-700 transition-colors"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!data?.has_data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
+          <p className="text-slate-500 mt-1">Ringkasan data akademik dan prediksi kelulusan</p>
+        </div>
+        <div className="flex items-center justify-center h-80">
+          <div className="text-center p-8 bg-slate-50 rounded-2xl border border-slate-200 max-w-md">
+            <DatabaseZap className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">Belum Ada Dataset</h3>
+            <p className="text-slate-500 text-sm">
+              Upload dataset mahasiswa terlebih dahulu melalui menu <strong>Data Mahasiswa</strong>, 
+              lalu lakukan <strong>Training Model</strong> untuk melihat statistik.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { stats, gpa_distribution, risk_distribution, recent_students } = data;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -117,102 +145,43 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        <StatCard icon={Users} title="Total Mahasiswa" value="1,000" change="12%" changeType="up" color="blue" delay={100} />
-        <StatCard icon={GraduationCap} title="Prediksi Tepat Waktu" value="85%" change="3.2%" changeType="up" color="green" delay={200} />
-        <StatCard icon={AlertTriangle} title="Risiko Tinggi" value="135" change="8%" changeType="down" color="amber" delay={300} />
-        <StatCard icon={TrendingUp} title="Akurasi Model" value="94.2%" change="1.5%" changeType="up" color="purple" delay={400} />
+        <StatCard
+          icon={Users}
+          title="Total Mahasiswa"
+          value={stats.total_students.toLocaleString('id-ID')}
+          subtitle="Dari dataset yang di-upload"
+          color="blue"
+          delay={100}
+        />
+        <StatCard
+          icon={GraduationCap}
+          title="Prediksi Tepat Waktu"
+          value={`${stats.on_time_percentage}%`}
+          subtitle="Berdasarkan data aktual"
+          color="green"
+          delay={200}
+        />
+        <StatCard
+          icon={AlertTriangle}
+          title="Risiko Tinggi"
+          value={stats.high_risk_count.toLocaleString('id-ID')}
+          subtitle="IPK < 2.75"
+          color="amber"
+          delay={300}
+        />
+        <StatCard
+          icon={TrendingUp}
+          title="Akurasi Model"
+          value={stats.model_accuracy > 0 ? `${stats.model_accuracy}%` : 'Belum Training'}
+          subtitle={stats.model_accuracy > 0 ? "Hasil training terakhir" : "Lakukan training terlebih dahulu"}
+          color="purple"
+          delay={400}
+        />
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Graduation Trend */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800">Tren Kelulusan</h3>
-              <p className="text-sm text-slate-500">Persentase kelulusan tepat waktu vs terlambat</p>
-            </div>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-blue-500" />
-                Tepat Waktu
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-red-400" />
-                Terlambat
-              </span>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={graduationTrendData}>
-              <defs>
-                <linearGradient id="colorTepat" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorTerlambat" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="tahun" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '13px',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
-                }}
-              />
-              <Area type="monotone" dataKey="tepat_waktu" stroke="#3b82f6" strokeWidth={2.5} fill="url(#colorTepat)" />
-              <Area type="monotone" dataKey="terlambat" stroke="#ef4444" strokeWidth={2.5} fill="url(#colorTerlambat)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
 
-        {/* Risk Distribution Pie */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">Distribusi Risiko</h3>
-          <p className="text-sm text-slate-500 mb-4">Mahasiswa berdasarkan tingkat risiko</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={riskDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={renderCustomizedLabel}
-                outerRadius={90}
-                innerRadius={40}
-                dataKey="value"
-                strokeWidth={3}
-                stroke="#fff"
-              >
-                {riskDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-2">
-            {riskDistribution.map((item) => (
-              <div key={item.name} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-slate-600">{item.name}</span>
-                </span>
-                <span className="font-semibold text-slate-700">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Charts Row 2 */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* GPA Distribution */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
@@ -224,7 +193,7 @@ export default function Dashboard() {
             <BarChart3 className="h-5 w-5 text-slate-400" />
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={gpaDistributionData} barSize={50}>
+            <BarChart data={gpa_distribution || []} barSize={50}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="range" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -238,7 +207,7 @@ export default function Dashboard() {
                 }}
               />
               <Bar dataKey="jumlah" radius={[8, 8, 0, 0]}>
-                {gpaDistributionData.map((entry, index) => (
+                {(gpa_distribution || []).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
@@ -246,52 +215,54 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Monthly Predictions */}
+        {/* Risk Distribution Pie */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">Prediksi Bulanan</h3>
-              <p className="text-sm text-slate-500">Jumlah prediksi yang dilakukan per bulan</p>
+              <h3 className="text-lg font-semibold text-slate-800">Distribusi Risiko</h3>
+              <p className="text-sm text-slate-500">Mahasiswa berdasarkan tingkat risiko</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={monthlyPredictions}>
-              <defs>
-                <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="bulan" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  fontSize: '13px',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="url(#lineGradient)"
+            <PieChart>
+              <Pie
+                data={risk_distribution || []}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderCustomizedLabel}
+                outerRadius={100}
+                innerRadius={50}
+                dataKey="value"
                 strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5, stroke: '#fff' }}
-                activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
-              />
-            </LineChart>
+                stroke="#fff"
+              >
+                {(risk_distribution || []).map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
           </ResponsiveContainer>
+          <div className="space-y-2 mt-2">
+            {(risk_distribution || []).map((item) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-slate-600">{item.name}</span>
+                </span>
+                <span className="font-semibold text-slate-700">{item.value.toLocaleString('id-ID')}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Recent Predictions Table */}
+      {/* Recent Students Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800">Prediksi Terbaru</h3>
-          <p className="text-sm text-slate-500 mt-1">Hasil prediksi kelulusan mahasiswa terakhir</p>
+          <h3 className="text-lg font-semibold text-slate-800">Data Mahasiswa Terbaru</h3>
+          <p className="text-sm text-slate-500 mt-1">10 data mahasiswa terakhir dari dataset</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -299,48 +270,32 @@ export default function Dashboard() {
               <tr className="bg-slate-50">
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">NIM</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Nama</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Program Studi</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">IPK</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Prediksi</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Probabilitas</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Risiko</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">SKS</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Kehadiran</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recentPredictions.map((item) => (
-                <tr key={item.nim} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-mono text-slate-600">{item.nim}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-800">{item.nama}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{item.ipk.toFixed(2)}</td>
+              {(recent_students || []).map((item, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 text-sm font-mono text-slate-600">{item.nim || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-800 font-medium">{item.name || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-700">{item.major || '-'}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-800">{item.gpa?.toFixed(2) || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{item.credits_completed || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{item.attendance_rate?.toFixed(1)}%</td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                        item.status === 'Tepat Waktu'
+                        item.is_on_time === 1
                           ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/10'
                           : 'bg-red-50 text-red-700 ring-1 ring-red-600/10'
                       }`}
                     >
-                      {item.status}
+                      {item.is_on_time === 1 ? 'Tepat Waktu' : 'Terlambat'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full max-w-[100px]">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            item.prob >= 0.7 ? 'bg-emerald-500' : item.prob >= 0.5 ? 'bg-amber-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${item.prob * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-slate-600 font-medium">{(item.prob * 100).toFixed(0)}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex h-2.5 w-2.5 rounded-full ${
-                        item.risk === 'low' ? 'bg-emerald-500' : item.risk === 'medium' ? 'bg-amber-500' : 'bg-red-500 animate-pulse'
-                      }`}
-                    />
                   </td>
                 </tr>
               ))}

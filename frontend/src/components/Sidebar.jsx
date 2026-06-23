@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Activity, Cpu, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, Cpu, LogOut, History } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Sidebar() {
@@ -8,6 +8,7 @@ export default function Sidebar() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Prediksi Kelulusan', href: '/predictions', icon: Activity },
+    { name: 'Riwayat Prediksi', href: '/predictions/history', icon: History },
     { name: 'Data Mahasiswa', href: '/students', icon: Users },
     { name: 'Training Model', href: '/training', icon: Cpu },
   ];
@@ -49,12 +50,20 @@ export default function Sidebar() {
         </nav>
       </div>
       <div className="flex-shrink-0 flex border-t border-slate-100 p-4">
-        <Link to="/login" className="flex-shrink-0 w-full group block">
+        <button
+          onClick={() => {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }}
+          className="flex-shrink-0 w-full group block cursor-pointer"
+        >
           <div className="flex items-center text-slate-500 hover:text-red-600 transition-colors">
             <LogOut className="inline-block h-5 w-5 mr-2" />
             <span className="text-sm font-medium">Keluar</span>
           </div>
-        </Link>
+        </button>
       </div>
     </div>
   );

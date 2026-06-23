@@ -1,22 +1,71 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Mail, Lock, ArrowRight, Eye, EyeOff, UserPlus, LogIn, AlertCircle, CheckCircle } from 'lucide-react';
+import { authAPI } from '../lib/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     setIsLoading(true);
-    // Simulate login delay
-    setTimeout(() => {
-      setIsLoading(false);
+
+    try {
+      const res = await authAPI.login(email, password);
+      const data = res.data;
+
+      // Save token & user info
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('refresh_token', data.refresh_token || '');
+      localStorage.setItem('user', JSON.stringify({
+        user_id: data.user_id,
+        email: data.email,
+        full_name: data.full_name,
+        role: data.role,
+      }));
+
       navigate('/dashboard');
-    }, 1200);
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Login gagal. Periksa email dan password Anda.';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await authAPI.register(email, password, fullName);
+      setSuccess('Registrasi berhasil! Silakan login dengan akun baru Anda.');
+      setIsRegisterMode(false);
+      setPassword('');
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Registrasi gagal. Coba lagi.';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,7 +109,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right - Login Form */}
+      {/* Right - Login/Register Form */}
       <div className="flex-1 flex items-center justify-center bg-slate-50 px-6">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
@@ -71,11 +120,54 @@ export default function Login() {
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-800">Selamat Datang</h2>
-            <p className="text-slate-500 mt-2">Masuk ke akun Anda untuk melanjutkan</p>
+            <h2 className="text-3xl font-bold text-slate-800">
+              {isRegisterMode ? 'Buat Akun Baru' : 'Selamat Datang'}
+            </h2>
+            <p className="text-slate-500 mt-2">
+              {isRegisterMode
+                ? 'Daftar untuk mulai menggunakan SGP'
+                : 'Masuk ke akun Anda untuk melanjutkan'}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-green-600">{success}</p>
+            </div>
+          )}
+
+          <form onSubmit={isRegisterMode ? handleRegister : handleLogin} className="space-y-5">
+            {/* Full Name (Register only) */}
+            {isRegisterMode && (
+              <div>
+                <label htmlFor="fullName" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Nama Lengkap
+                </label>
+                <div className="relative">
+                  <UserPlus className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <input
+                    id="fullName"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Dr. Ahmad Fauzi, M.Kom"
+                    className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -110,6 +202,7 @@ export default function Login() {
                   placeholder="••••••••"
                   className="w-full pl-11 pr-12 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
                   required
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -119,17 +212,9 @@ export default function Login() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-            </div>
-
-            {/* Remember & Forgot */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                <span className="text-slate-600">Ingat saya</span>
-              </label>
-              <a href="#" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
-                Lupa password?
-              </a>
+              {isRegisterMode && (
+                <p className="text-xs text-slate-400 mt-1">Minimal 6 karakter</p>
+              )}
             </div>
 
             {/* Submit */}
@@ -142,22 +227,38 @@ export default function Login() {
                 <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  Masuk
-                  <ArrowRight className="h-4 w-4" />
+                  {isRegisterMode ? (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      Daftar
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="h-4 w-4" />
+                      Masuk
+                    </>
+                  )}
                 </>
               )}
             </button>
           </form>
 
-          {/* Role info */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-xs text-blue-600 font-medium mb-2">Demo Akun:</p>
-            <div className="space-y-1 text-xs text-blue-500">
-              <p>Admin: admin@kampus.ac.id</p>
-              <p>Dosen: dosen@kampus.ac.id</p>
-              <p>Mahasiswa: mhs@kampus.ac.id</p>
-              <p className="text-blue-400">Password: apapun (demo mode)</p>
-            </div>
+          {/* Toggle Login/Register */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-500">
+              {isRegisterMode ? 'Sudah punya akun?' : 'Belum punya akun?'}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegisterMode(!isRegisterMode);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="ml-1 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              >
+                {isRegisterMode ? 'Masuk' : 'Daftar Sekarang'}
+              </button>
+            </p>
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-8">

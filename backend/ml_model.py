@@ -3,8 +3,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from xgboost import XGBClassifier
-import shap
+from xgboost import XGBClassifier  # type: ignore
+import shap  # type: ignore
 import pickle
 import os
 
@@ -17,11 +17,11 @@ def train_model(dataset_path: str):
     
     # 2. Preprocessing
     # Drop columns not used for training
-    X = df.drop(columns=['nim', 'is_on_time'])
+    X = df.drop(columns=['nim', 'name', 'is_on_time', 'major', 'extracurricular_score', 'data_source'], errors='ignore')
     y = df['is_on_time']
     
     # Categorical encoding (One-Hot Encoding)
-    X = pd.get_dummies(X, columns=['gender', 'major', 'financial_status'], drop_first=True)
+    X = pd.get_dummies(X, columns=['gender', 'financial_status'], drop_first=True)
     
     # Save feature names to ensure order in prediction
     feature_names = X.columns.tolist()
@@ -64,7 +64,8 @@ def predict_and_explain(input_data: dict):
     
     # Preprocess same as training
     # Note: For production, a robust pipeline (like sklearn.pipeline) is recommended
-    df = pd.get_dummies(df, columns=['gender', 'major', 'financial_status'])
+    df = df.drop(columns=['major', 'extracurricular_score'], errors='ignore')
+    df = pd.get_dummies(df, columns=['gender', 'financial_status'])
     
     # Align features
     X_input = pd.DataFrame(columns=feature_names)
